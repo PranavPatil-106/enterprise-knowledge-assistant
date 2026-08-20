@@ -128,7 +128,8 @@ def evaluate_answer(
 
     llm = create_chat_model(settings)
     embeddings = get_embedding_function(settings)
-    run_config = RunConfig(timeout=120, max_retries=5, max_workers=2)
+    # max_workers=1 avoids bursting free-tier concurrency limits
+    run_config = RunConfig(timeout=180, max_retries=6, max_workers=1)
 
     try:
         eval_result = evaluate(

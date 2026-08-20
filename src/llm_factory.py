@@ -32,6 +32,8 @@ def create_chat_model(settings: Settings | None = None) -> BaseChatModel:
             model=settings.llm_model,
             google_api_key=settings.google_api_key,
             temperature=0.0,
+            max_retries=6,
+            request_timeout=60.0,
         )
 
     if provider == "openai":
@@ -44,6 +46,8 @@ def create_chat_model(settings: Settings | None = None) -> BaseChatModel:
             model=settings.llm_model,
             api_key=settings.openai_api_key,
             temperature=0.0,
+            max_retries=6,
+            request_timeout=60.0,
         )
 
     if provider == "ollama":
