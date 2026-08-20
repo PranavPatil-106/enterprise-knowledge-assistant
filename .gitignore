@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+
+# Environment files
+.env
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ChromaDB persistence data
+data/chroma/*
+!data/chroma/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Submission directory
+submission/
