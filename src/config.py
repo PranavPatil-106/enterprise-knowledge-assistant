@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env
-load_dotenv()
+load_dotenv(override=True)
 
 # Fixed embedding model (not configurable via environment)
 FIXED_EMBEDDING_MODEL: str = "gemini-embedding-001"
@@ -49,8 +49,8 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        """Load and validate settings from environment variables."""
-        load_dotenv()
+        """Load and validate settings dynamically from environment variables / .env file."""
+        load_dotenv(override=True)
         provider = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
         model = os.getenv("LLM_MODEL", "").strip()
 
@@ -71,5 +71,5 @@ class Settings:
 
 
 def get_settings() -> Settings:
-    """Helper function to load settings from environment."""
+    """Helper function to load settings dynamically from environment."""
     return Settings.from_env()
