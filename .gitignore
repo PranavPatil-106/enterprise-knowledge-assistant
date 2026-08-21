@@ -1,25 +1,45 @@
 # Virtual environment
 .venv/
+env/
+venv/
 
-# Environment files
+# Environment files & secrets
 .env
 !.env.example
 
-# Python cache
+# Python cache & bytecode
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
+dist/
+build/
 
-# ChromaDB persistence data
+# Tests folder (local only)
+tests/
+
+# ChromaDB vector store data
 data/chroma/*
 !data/chroma/.gitkeep
 
-# Logs
+# Logs & Temporary files
 logs/*
 !logs/.gitkeep
+*.log
+*.tmp
+*.bak
+*.swp
 
-# Submission directory
-submission/
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archives
+*.zip
+*.tar.gz

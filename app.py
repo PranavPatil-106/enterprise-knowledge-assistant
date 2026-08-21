@@ -1,15 +1,13 @@
-"""Streamlit web interface for the Enterprise Knowledge Assistant."""
-
 import streamlit as st
-from src.application import run_workflow
 from src.config import get_settings
+from src.graph.workflow import run_workflow
+
 
 st.set_page_config(
     page_title="Enterprise Knowledge Assistant",
     layout="wide",
 )
 
-# Custom enterprise styling
 st.markdown(
     """
     <style>
@@ -47,24 +45,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Load application settings securely
 settings = get_settings()
 
-# Main Header
 st.markdown('<div class="main-title">Enterprise Knowledge Assistant</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="main-subtitle">'
-    'Autonomous RAG system for internal policy synthesis, authoritative source retrieval via Filesystem MCP, '
+    'Autonomous RAG system for internal policy synthesis, authoritative source retrieval via FastMCP, '
     'and automated quality evaluation via RAGAS.'
     '</div>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<span class="badge">Pipeline: Retriever Agent &rarr; Response Agent &rarr; Evaluator Agent</span>',
+    '<span class="badge">Pipeline: Supervisor &rarr; Retriever &rarr; Response &rarr; Evaluator</span>',
     unsafe_allow_html=True,
 )
 
-# Quick sample question actions
 st.markdown('<div class="section-header">Sample Inquiries</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
 sample_query = None
@@ -79,7 +74,6 @@ with col3:
     if st.button("IT Password Policy", use_container_width=True):
         sample_query = "What are the IT password complexity and change requirements?"
 
-# User query form
 with st.form(key="question_form", clear_on_submit=False):
     user_input = st.text_input(
         "Enter your question regarding enterprise policies:",
@@ -94,7 +88,7 @@ if query_to_run:
         st.warning("Please enter a question.")
     else:
         st.markdown(f"**Question:** {query_to_run.strip()}")
-        with st.spinner("Processing inquiry through Retriever Agent, Response Agent, and Evaluator Agent..."):
+        with st.spinner("Processing inquiry with Supervisor Agent..."):
             try:
                 result = run_workflow(query_to_run.strip(), settings=settings)
 
@@ -102,11 +96,9 @@ if query_to_run:
                 sources = result.get("sources", [])
                 evaluation = result.get("evaluation", {})
 
-                # Answer Section
                 st.markdown('<div class="section-header">Synthesized Response</div>', unsafe_allow_html=True)
                 st.markdown(answer)
 
-                # Source Documents Section
                 with st.expander(f"Authoritative Sources ({len(sources)})", expanded=False):
                     if sources:
                         for src in sources:
@@ -114,7 +106,6 @@ if query_to_run:
                     else:
                         st.write("No source documents identified.")
 
-                # Quality Metrics Section
                 st.markdown('<div class="section-header">Quality Evaluation (RAGAS)</div>', unsafe_allow_html=True)
                 if isinstance(evaluation, dict):
                     faithfulness = evaluation.get("faithfulness", 0.0)

@@ -1,5 +1,3 @@
-"""Document retrieval module for RAG knowledge base."""
-
 from pathlib import Path
 import chromadb
 from langchain_chroma import Chroma
@@ -15,46 +13,28 @@ def retrieve_documents(
     collection_name: str = DEFAULT_COLLECTION_NAME,
     settings: Settings | None = None,
 ) -> list[Document]:
-    """
-    Retrieve matching documents from the ChromaDB knowledge base for a given question.
+    cfg = settings or get_settings()
+    persist_dir = Path(cfg.chroma_persist_directory)
 
-    Uses the fixed Gemini embedding function.
-    Raises FileNotFoundError if the ChromaDB directory or collection has not been indexed yet.
-    """
-    if settings is None:
-        settings = get_settings()
-
-    persist_dir = Path(settings.chroma_persist_directory)
     if not persist_dir.exists():
         raise FileNotFoundError(
-            f"ChromaDB persistence directory '{persist_dir}' does not exist.\n"
-            "Please build the index first by running:\n"
-            "  uv run python -m src.ingest"
+            f"ChromaDB directory '{persist_dir}' does not exist. Run 'python -m src.ingest' first."
         )
 
     client = chromadb.PersistentClient(path=str(persist_dir.resolve()))
     try:
         collection = client.get_collection(name=collection_name)
         if collection.count() == 0:
-            raise FileNotFoundError(
-                f"ChromaDB collection '{collection_name}' exists but contains no indexed documents.\n"
-                "Please build the index first by running:\n"
-                "  uv run python -m src.ingest"
-            )
+            raise FileNotFoundError(f"ChromaDB collection '{collection_name}' is empty. Run 'python -m src.ingest'.")
     except Exception as e:
         if isinstance(e, FileNotFoundError):
             raise
-        raise FileNotFoundError(
-            f"ChromaDB collection '{collection_name}' not found in '{persist_dir}'.\n"
-            "Please build the index first by running:\n"
-            "  uv run python -m src.ingest"
-        ) from e
+        raise FileNotFoundError(f"Collection '{collection_name}' not found in '{persist_dir}'.") from e
 
-    embeddings = get_embedding_function(settings)
     vectorstore = Chroma(
         client=client,
         collection_name=collection_name,
-        embedding_function=embeddings,
+        embedding_function=get_embedding_function(cfg),
     )
 
     return vectorstore.similarity_search(query=question, k=top_k)
