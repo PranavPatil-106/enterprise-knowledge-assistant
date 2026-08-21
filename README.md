@@ -217,9 +217,9 @@ The `docs/screenshots/` folder contains visual documentation proving application
 
 | Screenshot File | Description & Verification Proof |
 | :--- | :--- |
-| [`streamlit_startup.png`](docs/screenshots/streamlit_startup.png) | Proves Streamlit UI startup and sample question buttons. |
-| [`streamlit_app.png`](docs/screenshots/streamlit_app.png) | Proves end-to-end question answering, grounded answer display, source expander, and RAGAS metric cards. |
-| [`langsmith_trace.png`](docs/screenshots/langsmith_trace.png) | Proves LangSmith multi-agent execution trace showing Supervisor, Retriever, Response, and Evaluator nodes. |
+| [`streamlit_app.jpg`](docs/screenshots/streamlit_app.jpg) | Proves Streamlit UI startup and sample question buttons. |
+| [`streamlit_app_withoutput.jpg`](docs/screenshots/streamlit_app_withoutput.jpg) | Proves end-to-end question answering, grounded answer display, source expander, and RAGAS metric cards. |
+| [`langsmith_observability.jpg`](docs/screenshots/langsmith_observability.jpg) | Proves LangSmith multi-agent execution trace showing Supervisor, Retriever, Response, and Evaluator nodes. |
 
 ---
 
@@ -235,9 +235,9 @@ data/
   chroma/               # Persistent ChromaDB vector storage
 docs/
   screenshots/          # UI screenshots and visual documentation
-    streamlit_startup.png
-    streamlit_app.png
-    langsmith_trace.png
+    streamlit_app.jpg
+    streamlit_app_withoutput.jpg
+    langsmith_observability.jpg
 src/
   __init__.py
   answering.py          # Grounded answering, context formatting, and prompt template
