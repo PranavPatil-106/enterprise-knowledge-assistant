@@ -7,90 +7,94 @@ from src.config import get_settings
 st.set_page_config(
     page_title="Enterprise Knowledge Assistant",
     layout="wide",
-    initial_sidebar_state="collapsed",
 )
 
-# Load application settings
-settings = get_settings()
-
-# Custom professional styling
+# Custom enterprise styling
 st.markdown(
     """
     <style>
     .main-title {
         font-size: 2.2rem;
         font-weight: 700;
-        color: #1E293B;
+        color: #1e293b;
         margin-bottom: 0.25rem;
     }
-    .sub-title {
+    .main-subtitle {
         font-size: 1.05rem;
-        color: #64748B;
+        color: #64748b;
         margin-bottom: 1.5rem;
+    }
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
     }
     .section-header {
         font-size: 1.25rem;
         font-weight: 600;
-        color: #0F172A;
+        color: #334155;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
-        border-bottom: 1px solid #E2E8F0;
-        padding-bottom: 0.35rem;
-    }
-    .answer-box {
-        background-color: #F8FAFC;
-        border-left: 4px solid #2563EB;
-        padding: 1.25rem;
-        border-radius: 4px;
-        margin-bottom: 1.25rem;
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #1E293B;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Main page header
+# Load application settings securely
+settings = get_settings()
+
+# Main Header
 st.markdown('<div class="main-title">Enterprise Knowledge Assistant</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="sub-title">Multi-agent RAG system for querying internal policies, '
-    'retrieving verified context via Filesystem MCP, and evaluating answer faithfulness using RAGAS.</div>',
+    '<div class="main-subtitle">'
+    'Autonomous RAG system for internal policy synthesis, authoritative source retrieval via Filesystem MCP, '
+    'and automated quality evaluation via RAGAS.'
+    '</div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<span class="badge">Pipeline: Retriever Agent &rarr; Response Agent &rarr; Evaluator Agent</span>',
     unsafe_allow_html=True,
 )
 
-# Sample question buttons
-st.markdown("**Sample Inquiries:**")
+# Quick sample question actions
+st.markdown('<div class="section-header">Sample Inquiries</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
 sample_query = None
 
 with col1:
-    if st.button("Remote Work: Core Hours", use_container_width=True):
+    if st.button("Remote Work Core Hours", use_container_width=True):
         sample_query = "What are the remote work core hours?"
 with col2:
-    if st.button("Leave Policy: Annual Entitlement", use_container_width=True):
+    if st.button("Annual Leave Entitlement", use_container_width=True):
         sample_query = "How many days of annual leave do employees receive per year?"
 with col3:
-    if st.button("IT Security: Password Requirements", use_container_width=True):
+    if st.button("IT Password Policy", use_container_width=True):
         sample_query = "What are the IT password complexity and change requirements?"
 
-# User question form
+# User query form
 with st.form(key="question_form", clear_on_submit=False):
     user_input = st.text_input(
-        "Policy Search Query:",
-        placeholder="Enter your question about enterprise policies...",
+        "Enter your question regarding enterprise policies:",
+        placeholder="e.g., What are the remote work core hours?",
     )
-    submit_button = st.form_submit_button("Submit Query", type="primary")
+    submit_button = st.form_submit_button("Submit Question", type="primary")
 
 query_to_run = sample_query if sample_query else (user_input if submit_button else None)
 
 if query_to_run:
     if not query_to_run.strip():
-        st.warning("Please enter a valid query.")
+        st.warning("Please enter a question.")
     else:
-        st.markdown(f"**Active Query:** {query_to_run.strip()}")
-        with st.spinner("Processing through Retriever Agent, Response Agent, and Evaluator Agent..."):
+        st.markdown(f"**Question:** {query_to_run.strip()}")
+        with st.spinner("Processing inquiry through Retriever Agent, Response Agent, and Evaluator Agent..."):
             try:
                 result = run_workflow(query_to_run.strip(), settings=settings)
 
@@ -98,20 +102,20 @@ if query_to_run:
                 sources = result.get("sources", [])
                 evaluation = result.get("evaluation", {})
 
-                # Prominent answer display
-                st.markdown('<div class="section-header">Generated Response</div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="answer-box">{answer}</div>', unsafe_allow_html=True)
+                # Answer Section
+                st.markdown('<div class="section-header">Synthesized Response</div>', unsafe_allow_html=True)
+                st.markdown(answer)
 
-                # Source documents expander
+                # Source Documents Section
                 with st.expander(f"Authoritative Sources ({len(sources)})", expanded=False):
                     if sources:
                         for src in sources:
                             st.markdown(f"- `{src}`")
                     else:
-                        st.write("No authoritative source documents identified.")
+                        st.write("No source documents identified.")
 
-                # Quality evaluation display
-                st.markdown('<div class="section-header">Evaluation Metrics (RAGAS)</div>', unsafe_allow_html=True)
+                # Quality Metrics Section
+                st.markdown('<div class="section-header">Quality Evaluation (RAGAS)</div>', unsafe_allow_html=True)
                 if isinstance(evaluation, dict):
                     faithfulness = evaluation.get("faithfulness", 0.0)
                     relevancy = evaluation.get("answer_relevancy", 0.0)
@@ -135,13 +139,13 @@ if query_to_run:
                         value=f"{relevancy * 100:.2f}%",
                     )
 
-                st.info(f"Summary: {interpretation}")
+                st.info(f"**Evaluation Summary:** {interpretation}")
 
             except ValueError as e:
-                st.warning(f"Validation notice: {e}")
+                st.warning(f"Validation Warning: {e}")
             except FileNotFoundError as e:
                 st.error(
-                    f"Index or document not found: {e}. Please run `uv run python -m src.ingest` first."
+                    f"ChromaDB index or document not found: {e}. Please run `uv run python -m src.ingest` first."
                 )
             except Exception as e:
                 err_msg = str(e)
