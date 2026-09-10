@@ -18,3 +18,4 @@ class GraphState(TypedDict, total=False):
     contact: dict[str, str]
     is_redirect: bool
     contact_topic: str
+    used_github_mcp: bool

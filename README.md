@@ -129,6 +129,10 @@ Configure your credentials in `.env`:
 | `LANGSMITH_API_KEY` | LangSmith API key for trace ingestion | `lsv2_pt_...` |
 | `LANGSMITH_PROJECT` | LangSmith project name for traces | `enterprise-knowledge-assistant` |
 | `LANGSMITH_ENDPOINT` | LangSmith API endpoint URL | `https://api.smith.langchain.com` |
+| `GITHUB_MCP_URL` | GitHub remote read-only MCP server endpoint | `https://api.githubcopilot.com/mcp/readonly` |
+| `GITHUB_PAT` | GitHub Personal Access Token with read-only repository permissions | `ghp_...` |
+| `GITHUB_REPOSITORY_OWNER` | GitHub repository owner/organization | `PranavPatil-106` |
+| `GITHUB_REPOSITORY_NAME` | GitHub repository name | `enterprise-knowledge-assistant` |
 
 ---
 
@@ -215,6 +219,36 @@ The project implements a **custom Python MCP Server** powered by **FastMCP** (`s
 
 ---
 
+## External GitHub MCP Integration (Streamable HTTP)
+
+The project incorporates GitHub’s official remote read-only Model Context Protocol (MCP) server (`https://api.githubcopilot.com/mcp/readonly`) to answer live repository inquiries without modifying the core three-node LangGraph pipeline.
+
+### 1. Connection & Transport
+- **Client Implementation**: [`src/github_mcp_client.py`](file:///e:/L3%20Project/AI%20Enterprise%20Project/src/github_mcp_client.py)
+- **Protocol & Transport**: Official `mcp` SDK using `streamable_http_client` and `ClientSession` over Streamable HTTP (`POST` with event stream processing).
+- **Authentication**: `Authorization: Bearer <GITHUB_PAT>` configured via local `.env`.
+- **Target Repository**: Configured via `GITHUB_REPOSITORY_OWNER` and `GITHUB_REPOSITORY_NAME` (e.g. `PranavPatil-106/enterprise-knowledge-assistant`).
+
+### 2. Read-Only Protection & Allowed Tools
+- **Read-Only Server Guarantee**: The connection explicitly specifies `X-MCP-Readonly: true` on every HTTP transport handshake.
+- **Allowed Tool Header**: Constrained strictly to `X-MCP-Tools: list_commits,get_file_contents`.
+- **Client-Side Whitelist Enforcement**: `ALLOWED_GITHUB_MCP_TOOLS = {"list_commits", "get_file_contents"}` is enforced programmatically in Python before opening any network transport. Any attempt to invoke write tools (such as creating issues, pushing commits, opening PRs, or deleting branches) raises a `ValueError` immediately.
+- **Credential Protection**: Personal Access Tokens (`GITHUB_PAT`) are never logged, printed, or exposed in telemetry traces or error messages.
+
+### 3. Pipeline Integration (Linear Flow Preserved)
+- **Zero New Nodes**: Integration lives entirely inside the existing `Retriever Agent` (`retriever_node`). The LangGraph flow remains strictly linear:
+  ```text
+  START -> Retriever Agent -> Response Agent -> Evaluator Agent -> END
+  ```
+- **Deterministic Routing**: Questions referencing repositories, commits, project files, or readmes are routed to GitHub MCP without LLM overhead.
+- **Context Synthesis**: Live commit metadata (commit SHA, author, date, message) or file contents (`README.md`) are converted into a verified `Document` and passed to the Response Agent.
+- **Evaluator & UI Display**: Responses are evaluated via RAGAS and flagged in Streamlit with an `External source: GitHub MCP (read-only)` indicator.
+
+### 4. Human-in-the-Loop (HITL) Note for Future Write Operations
+While the current integration is strictly read-only, if future write tools (such as opening pull requests or creating issues) were ever added, they **must** require human confirmation (Human-in-the-Loop) through interactive approval prompts and fine-grained, dedicated write tokens rather than autonomous execution.
+
+---
+
 ## RAGAS Quality Evaluation
 
 The Evaluator Agent integrates automated metrics via the RAGAS framework:
@@ -277,6 +311,7 @@ src/
   llm_factory.py        # Chat model factory (Gemini, OpenAI, Ollama)
   mcp_server.py         # Custom FastMCP Server exposing enterprise document tools
   mcp_client.py         # FastMCP client connecting to custom server via stdio
+  github_mcp_client.py  # GitHub remote read-only MCP client over Streamable HTTP
   output_guardrails.py  # Post-workflow output validation and secret/injection filtering
   query.py              # Direct query CLI
   run_graph.py          # LangGraph workflow CLI runner
@@ -291,6 +326,16 @@ src/
     loaders.py          # PDF, TXT, MD document loaders
     indexer.py          # Chunking, Gemini embeddings, and ChromaDB indexing
     retriever.py        # Vector similarity search using fixed Gemini embeddings
+tests/                  # Comprehensive unit and integration test suite
+  test_chunking.py
+  test_contact_directory.py
+  test_evaluation.py
+  test_github_mcp_client.py
+  test_graph.py
+  test_guardrails.py
+  test_mcp_client.py
+  test_output_guardrails.py
+  test_query.py
 .env.example            # Sample environment variables template
 .gitignore              # Git ignore rules
 pyproject.toml          # Project configuration and dependencies
@@ -304,6 +349,7 @@ README.md               # Project documentation
 
 - [x] **Source Code**: Complete multi-agent implementation across `src/` and `app.py`.
 - [x] **Filesystem MCP Integration**: Official Filesystem MCP client (`read_text_file`) retrieving authoritative document content.
+- [x] **External GitHub MCP Integration**: GitHub Copilot remote read-only MCP server over Streamable HTTP with strict read-only header and whitelist enforcement.
 - [x] **Linear Agent Pipeline**: Strict linear workflow (`START -> Retriever -> Response -> Evaluator -> END`).
 - [x] **Contact Redirection**: Relevance-aware routing, topic classification, safe redirection, and contact footers.
 - [x] **Privacy & Guardrails**: Input validation (`PIIMiddleware`) and output guardrails with RAGAS thresholding and credential filtering.

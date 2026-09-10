@@ -21,6 +21,10 @@ class Settings:
     min_retrieval_score: float = 0.45
     embedding_model: str = EMBEDDING_MODEL
     langsmith_tracing: bool = False
+    github_mcp_url: str = "https://api.githubcopilot.com/mcp/readonly"
+    github_pat: str = ""
+    github_repository_owner: str = "PranavPatil-106"
+    github_repository_name: str = "enterprise-knowledge-assistant"
 
     @property
     def fixed_embedding_model(self) -> str:
@@ -41,4 +45,8 @@ def get_settings() -> Settings:
         min_retrieval_score=float(os.getenv("MIN_RETRIEVAL_SCORE", "0.45")),
         embedding_model=EMBEDDING_MODEL,
         langsmith_tracing=os.getenv("LANGSMITH_TRACING", "false").strip().lower() in ("true", "1", "yes"),
+        github_mcp_url=os.getenv("GITHUB_MCP_URL", "https://api.githubcopilot.com/mcp/readonly").strip(),
+        github_pat=os.getenv("GITHUB_PAT", "").strip(),
+        github_repository_owner=os.getenv("GITHUB_REPOSITORY_OWNER", "PranavPatil-106").strip(),
+        github_repository_name=os.getenv("GITHUB_REPOSITORY_NAME", "enterprise-knowledge-assistant").strip(),
     )

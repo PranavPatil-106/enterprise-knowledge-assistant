@@ -69,6 +69,8 @@ def main() -> None:
             print(f"  Contact:  {contact.get('name')}, {contact.get('position')}")
             print(f"  Email:    {contact.get('email')}")
     else:
+        if final_state.get("used_github_mcp"):
+            print("SOURCE TYPE:\n  External source: GitHub MCP (read-only)\n")
         sources = final_state.get("sources", [])
         print("SOURCES:")
         if sources:

@@ -62,7 +62,7 @@ st.markdown(
 )
 
 st.markdown('<div class="section-header">Sample Inquiries</div>', unsafe_allow_html=True)
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 sample_query = None
 
 with col1:
@@ -74,6 +74,9 @@ with col2:
 with col3:
     if st.button("IT Password Policy", use_container_width=True):
         sample_query = "What are the IT password complexity and change requirements?"
+with col4:
+    if st.button("Latest Repository Commit", use_container_width=True):
+        sample_query = "What is the latest commit in this repository?"
 
 with st.form(key="question_form", clear_on_submit=False):
     user_input = st.text_input(
@@ -97,9 +100,12 @@ if query_to_run:
                 sources = result.get("sources", [])
                 evaluation = result.get("evaluation", {})
                 is_redirect = bool(result.get("is_redirect", False))
+                used_github_mcp = bool(result.get("used_github_mcp", False))
                 contact = result.get("contact", {})
 
                 st.markdown('<div class="section-header">Response</div>' if is_redirect else '<div class="section-header">Synthesized Response</div>', unsafe_allow_html=True)
+                if used_github_mcp:
+                    st.caption("External source: GitHub MCP (read-only)")
                 st.markdown(answer)
 
                 if is_redirect:

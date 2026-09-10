@@ -3,6 +3,8 @@
 import re
 from pathlib import Path
 from typing import Any
+from langchain_core.documents import Document
+
 from src.answering import format_context, generate_answer, get_source_names
 from src.config import get_settings
 from src.contact_directory import (
@@ -11,6 +13,7 @@ from src.contact_directory import (
     get_contact_for_topic,
 )
 from src.evaluation import evaluate_answer
+from src.github_mcp_client import fetch_github_context_for_question, is_github_question
 from src.graph.state import GraphState
 from src.llm_factory import create_chat_model
 from src.mcp_client import read_text_file_via_mcp
@@ -18,11 +21,28 @@ from src.rag.retriever import retrieve_documents_with_scores
 
 
 def retriever_node(state: GraphState) -> dict[str, Any]:
-    """Retriever Agent node: fetches matching documents from ChromaDB and reads the top source via Filesystem MCP."""
-    print("[Node: Retriever Agent] Fetching relevant documents from ChromaDB...")
+    """Retriever Agent node: fetches matching documents from ChromaDB, GitHub MCP, or reads top source via Filesystem MCP."""
     question = state["question"]
     settings = get_settings()
 
+    # Route repository / code inquiries through official GitHub Remote MCP
+    if is_github_question(question):
+        print("[Node: Retriever Agent] Fetching live repository information through GitHub MCP...")
+        mcp_context, source_label = fetch_github_context_for_question(question, settings=settings)
+        doc = Document(page_content=mcp_context, metadata={"source": source_label})
+        return {
+            "documents": [doc],
+            "context": mcp_context,
+            "mcp_context": mcp_context,
+            "sources": [source_label],
+            "has_verified_context": True,
+            "contact": get_contact_for_topic("general_support"),
+            "contact_topic": "general_support",
+            "is_redirect": False,
+            "used_github_mcp": True,
+        }
+
+    print("[Node: Retriever Agent] Fetching relevant documents from ChromaDB...")
     topic, contact = get_contact_for_question(question)
 
     doc_scores = retrieve_documents_with_scores(question=question, settings=settings)
@@ -47,6 +67,7 @@ def retriever_node(state: GraphState) -> dict[str, Any]:
             "contact": contact,
             "contact_topic": topic,
             "is_redirect": True,
+            "used_github_mcp": False,
         }
 
     context = format_context(documents)
@@ -93,6 +114,7 @@ def retriever_node(state: GraphState) -> dict[str, Any]:
         "contact": contact,
         "contact_topic": topic,
         "is_redirect": False,
+        "used_github_mcp": False,
     }
 
 
