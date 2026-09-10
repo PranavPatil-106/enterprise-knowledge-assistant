@@ -63,28 +63,17 @@ st.markdown(
 
 st.markdown('<div class="section-header">Sample Inquiries</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
-col4, col5, col6 = st.columns(3)
 sample_query = None
 
 with col1:
     if st.button("Remote Work Core Hours", use_container_width=True):
         sample_query = "What are the remote work core hours?"
 with col2:
+    if st.button("Annual Leave Entitlement", use_container_width=True):
+        sample_query = "How many days of annual leave do employees receive per year?"
+with col3:
     if st.button("IT Password Policy", use_container_width=True):
         sample_query = "What are the IT password complexity and change requirements?"
-with col3:
-    if st.button("Travel Expense Per Diem", use_container_width=True):
-        sample_query = "How much is the daily per diem meal allowance during business travel?"
-
-with col4:
-    if st.button("EPF & Provident Fund", use_container_width=True):
-        sample_query = "What is the employee provident fund (EPF) contribution percentage?"
-with col5:
-    if st.button("Vendor Gift Threshold", use_container_width=True):
-        sample_query = "What is the maximum gift value an employee can accept from a vendor?"
-with col6:
-    if st.button("Workplace Safety & Hazard", use_container_width=True):
-        sample_query = "How do I report a physical safety hazard or spill in the office?"
 
 with st.form(key="question_form", clear_on_submit=False):
     user_input = st.text_input(
