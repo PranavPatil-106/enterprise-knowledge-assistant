@@ -1,6 +1,7 @@
 import streamlit as st
+from src.application import run_workflow
 from src.config import get_settings
-from src.graph.workflow import run_workflow
+from src.output_guardrails import OutputGuardrailError
 
 
 st.set_page_config(
@@ -56,23 +57,34 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<span class="badge">Pipeline: Supervisor &rarr; Retriever &rarr; Response &rarr; Evaluator</span>',
+    '<span class="badge">Pipeline: Retriever &rarr; Response &rarr; Evaluator &rarr; Output Guardrails</span>',
     unsafe_allow_html=True,
 )
 
 st.markdown('<div class="section-header">Sample Inquiries</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
+col4, col5, col6 = st.columns(3)
 sample_query = None
 
 with col1:
     if st.button("Remote Work Core Hours", use_container_width=True):
         sample_query = "What are the remote work core hours?"
 with col2:
-    if st.button("Annual Leave Entitlement", use_container_width=True):
-        sample_query = "How many days of annual leave do employees receive per year?"
-with col3:
     if st.button("IT Password Policy", use_container_width=True):
         sample_query = "What are the IT password complexity and change requirements?"
+with col3:
+    if st.button("Travel Expense Per Diem", use_container_width=True):
+        sample_query = "How much is the daily per diem meal allowance during business travel?"
+
+with col4:
+    if st.button("EPF & Provident Fund", use_container_width=True):
+        sample_query = "What is the employee provident fund (EPF) contribution percentage?"
+with col5:
+    if st.button("Vendor Gift Threshold", use_container_width=True):
+        sample_query = "What is the maximum gift value an employee can accept from a vendor?"
+with col6:
+    if st.button("Workplace Safety & Hazard", use_container_width=True):
+        sample_query = "How do I report a physical safety hazard or spill in the office?"
 
 with st.form(key="question_form", clear_on_submit=False):
     user_input = st.text_input(
@@ -88,50 +100,69 @@ if query_to_run:
         st.warning("Please enter a question.")
     else:
         st.markdown(f"**Question:** {query_to_run.strip()}")
-        with st.spinner("Processing inquiry with Supervisor Agent..."):
+        with st.spinner("Processing inquiry through multi-agent pipeline..."):
             try:
                 result = run_workflow(query_to_run.strip(), settings=settings)
 
                 answer = result.get("answer", "No answer generated.")
                 sources = result.get("sources", [])
                 evaluation = result.get("evaluation", {})
+                is_redirect = bool(result.get("is_redirect", False))
+                contact = result.get("contact", {})
 
-                st.markdown('<div class="section-header">Synthesized Response</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-header">Response</div>' if is_redirect else '<div class="section-header">Synthesized Response</div>', unsafe_allow_html=True)
                 st.markdown(answer)
 
-                with st.expander(f"Authoritative Sources ({len(sources)})", expanded=False):
-                    if sources:
-                        for src in sources:
-                            st.markdown(f"- `{src}`")
-                    else:
-                        st.write("No source documents identified.")
-
-                st.markdown('<div class="section-header">Quality Evaluation (RAGAS)</div>', unsafe_allow_html=True)
-                if isinstance(evaluation, dict):
-                    faithfulness = evaluation.get("faithfulness", 0.0)
-                    relevancy = evaluation.get("answer_relevancy", 0.0)
-                    interpretation = evaluation.get(
-                        "interpretation", "No interpretation provided."
-                    )
+                if is_redirect:
+                    if contact:
+                        st.info(
+                            f"**Need more help?**\n\n"
+                            f"**Contact:** {contact.get('name')}  \n"
+                            f"**Role:** {contact.get('position')}  \n"
+                            f"**Email:** [{contact.get('email')}](mailto:{contact.get('email')})"
+                        )
+                    st.markdown('<div class="section-header">Quality Evaluation</div>', unsafe_allow_html=True)
+                    st.caption("Not evaluated because no verified policy context was found.")
                 else:
-                    faithfulness = 0.0
-                    relevancy = 0.0
-                    interpretation = str(evaluation)
+                    with st.expander(f"Authoritative Sources ({len(sources)})", expanded=False):
+                        if sources:
+                            for src in sources:
+                                st.markdown(f"- `{src}`")
+                        else:
+                            st.write("No source documents identified.")
 
-                metric_col1, metric_col2 = st.columns(2)
-                with metric_col1:
-                    st.metric(
-                        label="Faithfulness",
-                        value=f"{faithfulness * 100:.2f}%",
-                    )
-                with metric_col2:
-                    st.metric(
-                        label="Answer Relevancy",
-                        value=f"{relevancy * 100:.2f}%",
-                    )
+                    st.markdown('<div class="section-header">Quality Evaluation (RAGAS)</div>', unsafe_allow_html=True)
+                    if isinstance(evaluation, dict):
+                        faithfulness = evaluation.get("faithfulness", 0.0)
+                        relevancy = evaluation.get("answer_relevancy", 0.0)
+                        interpretation = evaluation.get(
+                            "interpretation", "No interpretation provided."
+                        )
+                    else:
+                        faithfulness = 0.0
+                        relevancy = 0.0
+                        interpretation = str(evaluation)
 
-                st.info(f"**Evaluation Summary:** {interpretation}")
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric(
+                            label="Faithfulness",
+                            value=f"{faithfulness * 100:.2f}%",
+                        )
+                    with metric_col2:
+                        st.metric(
+                            label="Answer Relevancy",
+                            value=f"{relevancy * 100:.2f}%",
+                        )
 
+                    st.info(f"**Evaluation Summary:** {interpretation}")
+
+                    if contact:
+                        from src.contact_directory import format_contact_footer
+                        st.markdown(f"*{format_contact_footer(contact)}*")
+
+            except OutputGuardrailError as e:
+                st.error(f"Guardrail Block: {e}")
             except ValueError as e:
                 st.warning(f"Validation Warning: {e}")
             except FileNotFoundError as e:

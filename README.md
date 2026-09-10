@@ -1,50 +1,76 @@
 # Enterprise Knowledge Assistant
 
-Enterprise Knowledge Assistant is a multi-agent Retrieval-Augmented Generation (RAG) system built to search, synthesize, and evaluate enterprise policy documents. It addresses the common challenges of enterprise search—hallucinations, untracked context sources, and unverifiable answers—by orchestrating a **Supervisor Agent** workflow in LangGraph that incorporates authoritative file reading via FastMCP, automated answer evaluation via RAGAS, observability via LangSmith, input guardrails with built-in LangChain `PIIMiddleware`, and an interactive Streamlit web interface.
+Enterprise Knowledge Assistant is a multi-agent Retrieval-Augmented Generation (RAG) system built to search, synthesize, and evaluate enterprise policy documents. It addresses the common challenges of enterprise search—hallucinations, untracked context sources, and unverifiable answers—by orchestrating a linear multi-agent workflow in LangGraph that incorporates authoritative file reading via the official Filesystem MCP server, automated answer evaluation via RAGAS, observability via LangSmith, input guardrails with built-in LangChain `PIIMiddleware`, and post-workflow output guardrails.
 
 ---
 
 ## Architecture Overview
 
-The system uses a **Supervisor Agent** pattern in LangGraph to coordinate specialized worker nodes:
+The system uses a clean linear multi-agent pipeline in LangGraph:
 
 ```text
-               ┌────────────────────────┐
-        START ─►    Supervisor Agent    ◄────────┐
-               │  (Dynamic State Router)│        │
-               └───────────┬────────────┘        │
-                           │                     │
-           ┌───────────────┼───────────────┐     │
-           ▼               ▼               ▼     │
-      [Retriever]     [Response]      [Evaluator]│
-    (ChromaDB + MCP) (Grounded LLM)  (RAGAS Eval)│
-           │               │               │     │
-           └───────────────┴───────────────┴─────┘
-                    (Reports back to Supervisor)
+START ──► [Retriever Agent] ──► [Response Agent] ──► [Evaluator Agent] ──► END
+          (ChromaDB + MCP)      (Grounded LLM)       (RAGAS Eval)
+                                                           │
+                                                           ▼
+                                                  [Output Guardrails]
+                                                           │
+                                                           ▼
+                                                     Final Result
 ```
 
 ### Execution Pipeline Flow
 
 1. **Input Guardrails & PII Middleware**: Validates query length, strips whitespace, and processes sensitive personal information (Emails, Phone numbers, URLs, IPs, SSNs) via LangChain's built-in `PIIMiddleware`.
-2. **Supervisor Agent**: Inspects the workflow state and dynamically routes execution to the appropriate node.
-3. **Retriever Node**: Queries ChromaDB vector storage using fixed Gemini embeddings, identifies the top-ranked source file, and invokes the custom FastMCP server (`read_policy_document`) to retrieve authoritative source context.
-4. **Response Node**: Synthesizes a factual, strictly grounded answer based exclusively on the assembled context using the configured Chat LLM.
-5. **Evaluator Node**: Assesses the generated answer against the retrieved context and user question using RAGAS (*Faithfulness* and *Answer Relevancy*). If faithfulness is below 70%, the Supervisor can trigger a grounded regeneration retry.
-6. **Workflow Completion**: Once all tasks are complete, the Supervisor Agent routes to `END` and returns the final answer, source citations, and evaluation metrics.
+2. **Retriever Node**: Queries ChromaDB vector storage using fixed Gemini embeddings, identifies the top-ranked source file, and invokes the official Filesystem MCP server (`read_text_file`) to retrieve authoritative source context.
+3. **Response Node**: Synthesizes a factual, strictly grounded answer based exclusively on the assembled context using the configured Chat LLM.
+4. **Evaluator Node**: Assesses the generated answer against the retrieved context and user question using RAGAS (*Faithfulness* and *Answer Relevancy*).
+5. **Output Guardrails**: Post-graph application middleware verifying that answers are grounded with supporting documents, meet RAGAS quality thresholds, filter secret credentials, and protect against prompt injection or internal prompt disclosure.
 
 ---
 
 ## Guardrails and Privacy Middleware
 
-The application implements guardrails using LangChain's built-in `PIIMiddleware` (`src/guardrails.py`):
-
+### Input Guardrails (`src/guardrails.py`)
+The application validates and sanitizes incoming user queries before graph execution:
 - **Input Validation**: Rejects empty queries and restricts question length to a maximum of 500 characters.
-- **Built-in PII Strategies**: Supports modular redaction, masking, and blocking policies:
+- **Built-in PII Strategies**: Powered by LangChain's built-in `PIIMiddleware`:
   - **`redact`**: Replaces sensitive data with category placeholders (e.g. `[REDACTED_EMAIL]`, `[REDACTED_URL]`).
   - **`mask`**: Obscures sensitive digits or tokens (e.g. `****-****-****-0002` for credit cards, `user@****.com` for emails, masked SSNs).
   - **`hash`**: Securely hashes sensitive identifiers (e.g. IP addresses).
   - **`block`**: Raises a `ValueError` / `PIIDetectionError` if prohibited personal information is submitted.
 - **Sandboxed MCP Tooling**: The FastMCP client is strictly read-only (`read_policy_document`), confined exclusively to `data/raw/`, and validates file path containment prior to execution.
+
+### Output Guardrails (`src/output_guardrails.py` & `src/workflow_middleware.py`)
+Post-workflow safety validation occurs after the Evaluator Agent assesses the answer (`Retriever Agent -> Response Agent -> Evaluator Agent -> Output Guardrails -> Final Result`):
+- **Supporting Sources Requirement**: Non-empty answers require verified, supporting source documents. Answers without supporting sources are blocked.
+- **RAGAS Quality Thresholds**: Enforces minimum quality standards:
+  - **Faithfulness**: Must be $\ge 0.70$ (detects hallucinations and unsupported claims).
+  - **Answer Relevancy**: Must be $\ge 0.60$ (ensures concise alignment with user query).
+  - Missing, invalid, or sub-threshold scores immediately halt output delivery.
+- **Secret-Pattern Filtering**: Detects and blocks accidental disclosure of sensitive credentials:
+  - Google AI / Cloud API keys (`AIza...`)
+  - OpenAI API keys (`sk-...`)
+  - LangSmith tokens (`lsv2_pt_...`)
+  - GitHub tokens (`ghp_...` and `github_pat_...`)
+- **Internal-Prompt & Prompt-Injection Filtering**: Blocks responses containing system prompt reveals or prompt-injection instructions (e.g., "ignore previous instructions", "reveal system prompt", "show hidden instructions"). Normal enterprise policies concerning passwords, credentials, and API security guidelines remain unblocked.
+- **Safe User Messaging**: Unsafe or ungrounded answers are hidden and replaced with a friendly, safe notice (`"Unable to show a verified answer for this question. Please try a more specific policy question."`) without exposing raw model outputs, stack traces, or internal prompt details.
+
+---
+
+## Contact Redirection
+
+The system includes deterministic contact-based redirection for unsupported queries, ensuring employees always receive verified guidance without LLM hallucination:
+
+- **Relevance-Aware Routing**: Documents retrieved from ChromaDB are evaluated against `MIN_RETRIEVAL_SCORE` (default `0.45`). When no retrieved documents meet this threshold, the system flags the inquiry as lacking verified policy context.
+- **Deterministic Topic Classification**: A lightweight, keyword-based classifier in `src/contact_directory.py` assigns inquiries to the appropriate department:
+  - **IT & Security** (`it_security`): Matches terms such as *password*, *MFA*, *security*, *device*, *laptop*, *access*, *encryption*, *VPN*.
+  - **People Operations** (`people_operations`): Matches terms such as *leave*, *PTO*, *sick leave*, *remote work*, *work from home*, *holiday*.
+  - **General Support** (`general_support`): Handles all other unmapped inquiries.
+- **Safe Redirection Message**: When no verified context exists, the Response Agent bypasses LLM generation and produces a standardized redirection message pointing the user to the designated team contact.
+- **Evaluation Bypass**: RAGAS evaluation is safely skipped for redirected inquiries since there is no retrieved ground-truth context to assess, setting the evaluation status to *"Not evaluated because no verified policy context was found."*
+- **Contact Footer on Supported Answers**: For normal verified answers, a standardized contact footer (`For more information, contact <Name>, <Position>, at <Email>.`) is displayed after RAGAS evaluation and output guardrail validation.
+- **Configurable Directory**: Contact information is maintained in `data/contact_directory.json` with safe placeholder contacts. Prior to enterprise deployment, these entries should be updated with authorized organizational contacts.
 
 ---
 
@@ -228,6 +254,7 @@ The `docs/screenshots/` folder contains visual documentation proving application
 ```text
 app.py                  # Streamlit web user interface
 data/
+  contact_directory.json # Departmental contact directory for query redirection
   raw/                  # Raw enterprise knowledge documents (.md, .txt, .pdf)
     leave_policy.md
     remote_work_policy.md
@@ -241,18 +268,22 @@ docs/
 src/
   __init__.py
   answering.py          # Grounded answering, context formatting, and prompt template
+  application.py        # Application service layer coordinating workflow and guardrails
   config.py             # Configuration and environment settings
+  contact_directory.py  # Contact loading, keyword topic classification, and message formatters
   evaluation.py         # RAGAS evaluation (Faithfulness & Answer Relevancy)
   guardrails.py         # Input validation and LangChain PIIMiddleware
   ingest.py             # Ingestion & index build CLI
   llm_factory.py        # Chat model factory (Gemini, OpenAI, Ollama)
   mcp_server.py         # Custom FastMCP Server exposing enterprise document tools
   mcp_client.py         # FastMCP client connecting to custom server via stdio
+  output_guardrails.py  # Post-workflow output validation and secret/injection filtering
   query.py              # Direct query CLI
   run_graph.py          # LangGraph workflow CLI runner
+  workflow_middleware.py # Safety middleware hooks before and after graph execution
   graph/
     __init__.py
-    nodes.py            # Supervisor, Retriever, Response, and Evaluator nodes
+    nodes.py            # Retriever, Response, and Evaluator nodes
     state.py            # GraphState TypedDict definition
     workflow.py         # StateGraph builder and workflow execution
   rag/
@@ -272,9 +303,10 @@ README.md               # Project documentation
 ## Submission Checklist
 
 - [x] **Source Code**: Complete multi-agent implementation across `src/` and `app.py`.
-- [x] **FastMCP Custom Server**: Python-native FastMCP server (`EnterpriseKnowledgeServer`) with `read_policy_document` and `list_policy_documents` tools.
-- [x] **Supervisor Agent**: Dynamic hub-and-spoke state routing to specialized worker nodes.
-- [x] **Privacy & Guardrails**: Input validation, length checks, and LangChain `PIIMiddleware`.
-- [x] **Documentation**: Full `README.md` with architecture, setup, RAG, FastMCP, RAGAS, and execution guides.
+- [x] **Filesystem MCP Integration**: Official Filesystem MCP client (`read_text_file`) retrieving authoritative document content.
+- [x] **Linear Agent Pipeline**: Strict linear workflow (`START -> Retriever -> Response -> Evaluator -> END`).
+- [x] **Contact Redirection**: Relevance-aware routing, topic classification, safe redirection, and contact footers.
+- [x] **Privacy & Guardrails**: Input validation (`PIIMiddleware`) and output guardrails with RAGAS thresholding and credential filtering.
+- [x] **Documentation**: Full `README.md` with architecture, setup, RAG, MCP, RAGAS, and execution guides.
 - [x] **Visual Evidence**: Screenshots in `docs/screenshots/` verifying UI startup, results, and LangSmith traces.
 - [x] **Secrets Excluded**: `.env`, `.venv/`, `data/chroma/`, and temporary artifacts properly gitignored.

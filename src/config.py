@@ -17,6 +17,8 @@ class Settings:
     knowledge_base_path: Path = Path("data/raw")
     chroma_persist_directory: Path = Path("data/chroma")
     mcp_allowed_directory: Path = Path("data/raw")
+    contact_directory_path: Path = Path("data/contact_directory.json")
+    min_retrieval_score: float = 0.45
     embedding_model: str = EMBEDDING_MODEL
     langsmith_tracing: bool = False
 
@@ -35,6 +37,8 @@ def get_settings() -> Settings:
         knowledge_base_path=Path(os.getenv("KNOWLEDGE_BASE_PATH", "data/raw")),
         chroma_persist_directory=Path(os.getenv("CHROMA_PERSIST_DIRECTORY", "data/chroma")),
         mcp_allowed_directory=Path(os.getenv("MCP_ALLOWED_DIRECTORY", "data/raw")),
+        contact_directory_path=Path(os.getenv("CONTACT_DIRECTORY_PATH", "data/contact_directory.json")),
+        min_retrieval_score=float(os.getenv("MIN_RETRIEVAL_SCORE", "0.45")),
         embedding_model=EMBEDDING_MODEL,
         langsmith_tracing=os.getenv("LANGSMITH_TRACING", "false").strip().lower() in ("true", "1", "yes"),
     )

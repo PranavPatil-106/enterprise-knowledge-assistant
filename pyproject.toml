@@ -15,6 +15,7 @@ dependencies = [
     "langsmith>=0.11.1",
     "mcp<2.0.0",
     "pypdf>=6.16.1",
+    "pyarrow>=19.0.1,<20.0.0",
     "python-dotenv>=1.2.3",
     "ragas>=0.4.3",
     "streamlit>=1.62.0",

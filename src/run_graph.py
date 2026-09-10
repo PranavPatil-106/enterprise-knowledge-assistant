@@ -1,15 +1,17 @@
 import sys
 from typing import Any
 
+from src.application import run_workflow
 from src.config import get_settings
-from src.graph.workflow import run_workflow
+from src.contact_directory import format_contact_footer
+from src.output_guardrails import OutputGuardrailError
 
 
 def format_evaluation_report(evaluation: dict[str, Any] | str | None) -> str:
     if not evaluation:
         return "No evaluation result available."
     if isinstance(evaluation, str):
-        return evaluation
+        return f"  {evaluation}"
 
     faithfulness = evaluation.get("faithfulness", 0.0)
     relevancy = evaluation.get("answer_relevancy", 0.0)
@@ -45,22 +47,41 @@ def main() -> None:
 
     try:
         final_state = run_workflow(question, settings=settings)
+    except OutputGuardrailError as e:
+        print(f"Guardrail Block: {e}")
+        sys.exit(1)
     except Exception as e:
         print(f"Execution error: {e}")
         sys.exit(1)
 
+    is_redirect = bool(final_state.get("is_redirect", False))
+    contact = final_state.get("contact", {})
+
     print("FINAL ANSWER:\n" + final_state.get("answer", "No answer generated.") + "\n")
 
-    sources = final_state.get("sources", [])
-    print("SOURCES:")
-    if sources:
-        for src in sources:
-            print(f"  - {src}")
-    else:
-        print("  None")
+    if is_redirect:
+        print("EVALUATION:")
+        eval_status = final_state.get("evaluation", "Not evaluated because no verified policy context was found.")
+        print(f"  {eval_status}\n")
 
-    print("\nEVALUATION (RAGAS):")
-    print(format_evaluation_report(final_state.get("evaluation")))
+        if contact:
+            print("NEED MORE HELP?")
+            print(f"  Contact:  {contact.get('name')}, {contact.get('position')}")
+            print(f"  Email:    {contact.get('email')}")
+    else:
+        sources = final_state.get("sources", [])
+        print("SOURCES:")
+        if sources:
+            for src in sources:
+                print(f"  - {src}")
+        else:
+            print("  None")
+
+        print("\nEVALUATION (RAGAS):")
+        print(format_evaluation_report(final_state.get("evaluation")))
+
+        if contact:
+            print(f"\n{format_contact_footer(contact)}")
 
 
 if __name__ == "__main__":

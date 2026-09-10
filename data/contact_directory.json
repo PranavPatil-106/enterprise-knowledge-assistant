@@ -1,0 +1,44 @@
+{
+  "it_security": {
+    "topic_name": "IT and security",
+    "name": "IT Service Desk",
+    "position": "IT Support Lead",
+    "email": "it-support@example.com"
+  },
+  "people_operations": {
+    "topic_name": "leave and remote work",
+    "name": "People Operations Team",
+    "position": "People Operations Lead",
+    "email": "people-ops@example.com"
+  },
+  "travel_expense": {
+    "topic_name": "business travel and expenses",
+    "name": "Finance Operations Desk",
+    "position": "Travel & Expense Lead",
+    "email": "finance-travel@example.com"
+  },
+  "ethics_compliance": {
+    "topic_name": "ethics and conduct",
+    "name": "Ethics & Compliance Office",
+    "position": "Compliance Officer",
+    "email": "ethics-compliance@example.com"
+  },
+  "employee_benefits": {
+    "topic_name": "employee benefits and insurance",
+    "name": "Benefits & Rewards Team",
+    "position": "Total Rewards Specialist",
+    "email": "benefits@example.com"
+  },
+  "workplace_safety": {
+    "topic_name": "workplace safety and facilities",
+    "name": "Facilities & Safety Team",
+    "position": "EHS Coordinator",
+    "email": "facilities-safety@example.com"
+  },
+  "general_support": {
+    "topic_name": "general policy",
+    "name": "Employee Support Desk",
+    "position": "Support Coordinator",
+    "email": "employee-support@example.com"
+  }
+}
