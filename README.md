@@ -79,7 +79,7 @@ The system includes deterministic contact-based redirection for unsupported quer
 - **Python**: Core programming language (Python 3.12+).
 - **uv / pip**: Package and environment management.
 - **FastMCP**: Python framework used to build and run the custom Model Context Protocol (MCP) server over `stdio`.
-- **LangGraph**: Multi-agent state graph orchestration and dynamic supervisor routing.
+- **LangGraph**: Multi-agent state graph orchestration with a strict linear 3-node pipeline.
 - **LangChain**: Document abstractions, vector store integrations, LLM interfaces, and `PIIMiddleware`.
 - **Chat LLMs**: Configurable chat models supporting **Gemini** (default), **OpenAI**, and **Ollama**.
 - **Embedding Model**: Fixed **Gemini Embeddings** (`gemini-embedding-001`).
@@ -154,20 +154,16 @@ uv run python -m src.run_graph "What are the remote work core hours?"
 ```text
 Running workflow (gemini/gemini-2.5-flash): What are the remote work core hours?
 
-[Supervisor] Diverting to Retriever...
-[Retriever] Fetching relevant documents...
-[Supervisor] Diverting to Response...
-[Response] Generating answer...
-[Supervisor] Diverting to Evaluator...
-[Evaluator] Evaluating response with RAGAS...
-[Supervisor] Workflow complete.
+[Node: Retriever Agent] Fetching relevant documents from ChromaDB...
+[Node: Retriever Agent] Reading top source through Filesystem MCP...
+[Node: Response Agent] Generating grounded answer from context...
+[Node: Evaluator Agent] Evaluating response quality with RAGAS...
 
 FINAL ANSWER:
 The remote‑work core hours are 10:00 AM to 4:00 PM in the employee’s designated primary time zone.
 
 SOURCES:
   - remote_work_policy.md
-  - leave_policy.md
 
 EVALUATION (RAGAS):
   - Faithfulness:      100.00%
@@ -175,12 +171,17 @@ EVALUATION (RAGAS):
   - Summary:           Strong quality: Response is highly faithful to context and directly relevant to the question.
 ```
 
-### 3. Run Direct Query CLI
+### 3. Query Repository via External GitHub MCP
+```powershell
+uv run python -m src.run_graph "What is the latest commit in this repository?"
+```
+
+### 4. Run Direct Query CLI
 ```powershell
 uv run python -m src.query "How many days of annual leave do employees receive per year?"
 ```
 
-### 4. Launch the Streamlit Web Interface
+### 5. Launch the Streamlit Web Interface
 Start the interactive Streamlit application:
 ```powershell
 uv run streamlit run app.py
@@ -266,7 +267,7 @@ The Evaluator Agent integrates automated metrics via the RAGAS framework:
 
 The multi-agent workflow is instrumented with **LangSmith**:
 
-- **End-to-End Tracing**: Automatically captures multi-agent trajectories showing `supervisor`, `retriever_node` (including FastMCP tool calls), `response_node` (LLM generation), and `evaluator_node` (RAGAS evaluation).
+- **End-to-End Tracing**: Automatically captures multi-agent trajectories showing `retriever_node` (including FastMCP and GitHub MCP tool calls), `response_node` (LLM generation), and `evaluator_node` (RAGAS evaluation).
 - **Safe Operation**: No private keys or secrets are exposed in telemetry logs or traces.
 
 ---
