@@ -126,6 +126,10 @@ if query_to_run:
                         else:
                             st.write("No source documents identified.")
 
+                    if contact:
+                        from src.contact_directory import format_contact_footer
+                        st.markdown(f"*{format_contact_footer(contact)}*")
+
                     st.markdown('<div class="section-header">Quality Evaluation (RAGAS)</div>', unsafe_allow_html=True)
                     if isinstance(evaluation, dict):
                         faithfulness = evaluation.get("faithfulness", 0.0)
@@ -151,10 +155,6 @@ if query_to_run:
                         )
 
                     st.info(f"**Evaluation Summary:** {interpretation}")
-
-                    if contact:
-                        from src.contact_directory import format_contact_footer
-                        st.markdown(f"*{format_contact_footer(contact)}*")
 
             except OutputGuardrailError as e:
                 st.error(f"Guardrail Block: {e}")

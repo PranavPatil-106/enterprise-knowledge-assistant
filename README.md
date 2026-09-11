@@ -69,7 +69,7 @@ The system includes deterministic contact-based redirection for unsupported quer
   - **General Support** (`general_support`): Handles all other unmapped inquiries.
 - **Safe Redirection Message**: When no verified context exists, the Response Agent bypasses LLM generation and produces a standardized redirection message pointing the user to the designated team contact.
 - **Evaluation Bypass**: RAGAS evaluation is safely skipped for redirected inquiries since there is no retrieved ground-truth context to assess, setting the evaluation status to *"Not evaluated because no verified policy context was found."*
-- **Contact Footer on Supported Answers**: For normal verified answers, a standardized contact footer (`For more information, contact <Name>, <Position>, at <Email>.`) is displayed after RAGAS evaluation and output guardrail validation.
+- **Contact Footer on Supported Answers**: For normal verified answers, a standardized contact footer (`For more information, contact <Name>, <Position>, at <Email>.`) is displayed immediately below the answer and sources before RAGAS quality evaluation.
 - **Configurable Directory**: Contact information is maintained in `data/contact_directory.json` with safe placeholder contacts. Prior to enterprise deployment, these entries should be updated with authorized organizational contacts.
 
 ---
@@ -164,6 +164,8 @@ The remote‑work core hours are 10:00 AM to 4:00 PM in the employee’s designa
 
 SOURCES:
   - remote_work_policy.md
+
+For more information, contact People Operations Team, People Operations Lead, at people-ops@example.com.
 
 EVALUATION (RAGAS):
   - Faithfulness:      100.00%

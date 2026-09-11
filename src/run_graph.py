@@ -79,11 +79,11 @@ def main() -> None:
         else:
             print("  None")
 
-        print("\nEVALUATION (RAGAS):")
-        print(format_evaluation_report(final_state.get("evaluation")))
-
         if contact:
             print(f"\n{format_contact_footer(contact)}")
+
+        print("\nEVALUATION (RAGAS):")
+        print(format_evaluation_report(final_state.get("evaluation")))
 
 
 if __name__ == "__main__":
