@@ -119,16 +119,16 @@ if query_to_run:
                     st.markdown('<div class="section-header">Quality Evaluation</div>', unsafe_allow_html=True)
                     st.caption("Not evaluated because no verified policy context was found.")
                 else:
+                    if contact:
+                        from src.contact_directory import format_contact_footer
+                        st.markdown(f"*{format_contact_footer(contact)}*")
+
                     with st.expander(f"Authoritative Sources ({len(sources)})", expanded=False):
                         if sources:
                             for src in sources:
                                 st.markdown(f"- `{src}`")
                         else:
                             st.write("No source documents identified.")
-
-                    if contact:
-                        from src.contact_directory import format_contact_footer
-                        st.markdown(f"*{format_contact_footer(contact)}*")
 
                     st.markdown('<div class="section-header">Quality Evaluation (RAGAS)</div>', unsafe_allow_html=True)
                     if isinstance(evaluation, dict):
